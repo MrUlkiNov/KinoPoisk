@@ -1,48 +1,68 @@
 from typing import Any
 import requests
-from pprint import pprint
 from config import API_TOKEN
 import json
 
 
-def get_params(year: str, count: int) -> str | Any:
+def get_params(sort_type: str, count: int, custom_year="0000") -> str | Any:
     """
     Функция принимает параметр отсеивания Страна и так же количество данных, возвращает словарь с API сервера
     """
     headers = {
         "X-API-KEY": API_TOKEN
     }
-    response = requests.get(
-        f"https://api.kinopoisk.dev/v1.4/movie?page=1&limit={count}&selectFields=name&selectFields"
-        f"=rating&selectFields=year&selectFields=poster&selectFields=genres&selectFields"
-        f"=countries&notNullFields=name&notNullFields=type&year={year}", headers=headers)
+    url = "https://api.kinopoisk.dev/v1.4/movie"
+    params = {
+        "page": 1,
+        "limit": count,
+        "selectFields": ['name', 'rating', 'year', 'poster', 'genres', 'shortDescription', 'countries'],
+        "rating.kp": "8-10",
+        "notNullFields": ['name', 'type'],
+    }
+
+    if sort_type.lower() == 'low':
+        params["year"] = "1970-1990"
+    elif sort_type.lower() == 'high':
+        params["year"] = "2019-2023"
+    elif sort_type.lower() == 'custom':
+        params["year"] = custom_year
+
+    response = requests.get(url, params=params, headers=headers)
+
     if response.status_code != 200:
-        return "Не удалось выполнить поиск"
+        return None
     else:
         return json.loads(response.text)
 
 
-def print_info(params: dict, sort_type: int) -> None:
+def client_window(sort_type: str, count: int, custom_year: str = "0000") -> str | list[Any]:
     """
-    Функция принимает словарь данных, а так же тип сортировки и выводит отсортированный словарь
+    Основная функция, которая принимает от пользователя параметры и возвращает отсортированный список фильмов
     """
-    global result
-    if sort_type == 1:
-        result = sorted(params['docs'], key=lambda x: x['year'], reverse=True)
-    elif sort_type == 2:
-        result = sorted(params['docs'], key=lambda x: x['year'])
-    pprint(result)
+    try:
+        params = get_params(sort_type, count, custom_year)
+        if params is None:
+            return "Не удалось выполнить поиск"
+
+        sorted_films = sorted(params['docs'], key=lambda x: x['year'])
+        result_films = []
+
+        for film in sorted_films:
+            name = film['name']
+            year = film['year']
+            rating = film['rating']['kp']
+            country = film['countries'][0]['name'] if 'countries' in film else ''
+            genres = [i['name'] for i in film['genres']] if 'genres' in film else []
+            image = film['poster']['previewUrl'] if 'poster' in film else ''
+            description = film['shortDescription'] if film['shortDescription'] is not None else 'Нет описания'
+            formatted_string = "{} ({}) - Рейтинг: {}\nЖанры:\n{}\nСтрана: {}\n==={}===".format(
+                name, year, rating, '\\ '.join(genres), country, description)
+            result_films.append((formatted_string, image))
+
+        return result_films
+
+    except ValueError:
+        return []
 
 
-def client_window() -> None:
-    """
-    Основная функция, которая принимает от пользователя параметры и вызывает функции для вывода данных
-    """
-    sort_type = int(input("1 - low, 2 - high (low - От новых фильмов до старых) (high - От старых к новым): "))
-    year = input("Введите диапазон годов фильма (Пример: 2005-2010): ")
-    count = int(input("Сколько фильмов необходимо вывести? "))
-    params = get_params(year, count)
-    print_info(params, sort_type)
 
-
-client_window()
