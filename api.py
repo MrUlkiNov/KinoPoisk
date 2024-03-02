@@ -1,6 +1,5 @@
 from typing import Any
 import requests
-from pprint import pprint
 from config import API_TOKEN
 import json
 
@@ -36,7 +35,7 @@ def get_params(sort_type: str, count: int, custom_year="0000") -> str | Any:
         return json.loads(response.text)
 
 
-def client_window(sort_type: str, count: int, custom_year="0000") -> str | list[Any]:
+def client_window(sort_type: str, count: int, custom_year: str = "0000") -> str | list[Any]:
     """
     Основная функция, которая принимает от пользователя параметры и возвращает отсортированный список фильмов
     """
@@ -66,5 +65,4 @@ def client_window(sort_type: str, count: int, custom_year="0000") -> str | list[
         return []
 
 
-pprint(client_window('custom', 3, "2000-2014"))
 
